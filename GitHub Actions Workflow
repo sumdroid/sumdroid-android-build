@@ -1,0 +1,54 @@
+name: Android Build via Gradlew
+
+on:
+  release:
+    types: [published]
+  pull_request:
+    types: [opened, reopened, synchronize]
+  workflow_dispatch:
+    inputs:
+      message:
+        description: 'Message for manually triggering'
+        required: false
+        default: 'Triggered for Updates'
+        type: string
+  push:
+    branches:
+      - main
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    env:
+      ANDROID_HOME: /usr/local/android-sdk
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Grant Gradlew Permission
+      run: chmod +x ./gradlew
+
+    - name: Build APK
+      run: ./gradlew clean build test
+      working-directory: ./android
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-apk
+        path: ./android/app/build/outputs/apk/
+
+    - name: Send Slack Notification
+      if: always()
+      uses: rtCamp/action-slack-notify@v2
+      with:
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        message: "Android Build Workflow Completed: ${{ github.repository }} - ${{ github.ref_name }}"
